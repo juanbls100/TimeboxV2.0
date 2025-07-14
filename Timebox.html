@@ -1,0 +1,2607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeboxing</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            /* Fluorescent/Vibrant Palette with Blue/Grey/Black Base */
+            --primary-color: #00BCD4; /* Cyan - vibrant primary */
+            --primary-dark-color: #0097A7; /* Darker Cyan */
+            --secondary-color: #FFEB3B; /* Yellow - strong accent */
+            --background-color: rgba(44, 62, 80, 0.9); /* Dark Blue-Grey, made more opaque */
+            --surface-color: rgba(236, 240, 241, 0.95); /* Light Grey, made more opaque */
+            --text-color: #2c3e50; /* Dark text on light surfaces */
+            --light-text-color: #7f8c8d; /* Medium grey text */
+            --border-color: #bdc3c7; /* Light grey border */
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-medium: rgba(0, 0, 0, 0.2);
+
+            /* Priority Colors (adjusted to new palette) - Ensured solid backgrounds */
+            --priority-urgent: #E91E63; /* Pink/Red - vibrant */
+            --priority-important: #FFC107; /* Amber - vibrant */
+            --priority-normal: #4CAF50; /* Green - vibrant */
+            /* Solid backgrounds for schedule items */
+            --priority-urgent-bg: #F8BBD0; /* Light Pink - Solid */
+            --priority-important-bg: #FFECB3; /* Light Amber - Solid */
+            --priority-normal-bg: #C8E6C9; /* Light Green - Solid */
+
+            --empty-slot-bg: #F5F5F5; /* Solid light grey for empty slots */
+            --fixed-task-bg: #DCEDC8; /* Solid light green for fixed tasks */
+            --fixed-task-border: #8BC34A; /* Medium green */
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-image: url("https://media.licdn.com/dms/image/v2/C4E12AQFYW9IGgqpOZQ/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1520114024769?e=2147483647&v=beta&t=gbEOHhSa6cEFWajJlQxO5KrUwMlum56hCZ9I-7oY2Fk");
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center center;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--surface-color); /* More opaque */
+            border-radius: 12px;
+            box-shadow: 0 10px 30px var(--shadow-medium);
+            width: 100%;
+            max-width: 1200px;
+            padding: 30px;
+            box-sizing: border-box;
+            margin-top: 50px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            font-weight: 700;
+            font-size: 2.2em;
+        }
+
+        h2 {
+            color: var(--primary-dark-color); /* Adjusted to new palette */
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.6em;
+            text-align: center;
+        }
+
+        /* Navigation Menu */
+        .main-nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            background-color: var(--primary-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            flex-wrap: wrap;
+        }
+
+        .main-nav button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .main-nav button:hover {
+            background-color: var(--primary-dark-color);
+            transform: translateY(-1px);
+        }
+
+        .main-nav button.active {
+            background-color: var(--primary-dark-color);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Hamburger Menu */
+        .hamburger-menu {
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            cursor: pointer;
+            padding: 10px;
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            position: relative;
+            z-index: 1010; /* Above other content */
+        }
+
+        .hamburger-menu .bar {
+            width: 25px;
+            height: 3px;
+            background-color: white;
+            margin: 4px 0;
+            transition: 0.4s;
+        }
+
+        .mobile-nav-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .mobile-nav-overlay.active {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .mobile-nav-overlay button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.5em;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: background-color 0.3s ease;
+            width: 80%;
+            max-width: 300px;
+            border-radius: 8px;
+        }
+
+        .mobile-nav-overlay button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2em;
+            color: white;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+
+        .input-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .input-section input[type="text"],
+        .input-section select,
+        .input-section input[type="date"],
+        .input-section textarea { /* Added textarea */
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            color: var(--text-color);
+            transition: border-color 0.3s ease;
+            min-width: 150px;
+            box-sizing: border-box; /* Prevent overflow */
+        }
+
+        .input-section input[type="date"] {
+            flex-shrink: 0; /* Prevent shrinking */
+            width: auto; /* Allow natural width */
+            min-width: 120px; /* Ensure it's not too small */
+        }
+
+        .input-section select {
+            flex-grow: 0;
+            width: auto;
+            min-width: 120px;
+            cursor: pointer;
+            background-color: var(--surface-color);
+        }
+
+        .input-section input[type="text"]:focus,
+        .input-section select:focus,
+        .input-section input[type="date"]:focus,
+        .input-section textarea:focus { /* Added textarea */
+            outline: none;
+            border-color: var(--primary-color); /* Changed to primary color */
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.2); /* Cyan shadow */
+        }
+
+        .input-section button {
+            padding: 12px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .input-section button:hover {
+            background-color: var(--primary-dark-color);
+            transform: translateY(-2px);
+        }
+
+        /* Statistics Section */
+        .statistics-section {
+            background-color: var(--surface-color); /* More opaque */
+            border-radius: 12px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .stats-summary p {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        .stats-summary span {
+            font-weight: 700;
+            color: var(--primary-dark-color); /* Adjusted to new palette */
+        }
+
+        .app-page {
+            display: none; /* Hidden by default */
+        }
+
+        .app-page.active {
+            display: block; /* Shown when active */
+        }
+
+        /* Capture Page Specific Layout */
+        #capture-page .main-content {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        #capture-page .unassigned-tasks-section,
+        #capture-page .daily-reminders-section {
+            flex: 1 1 300px;
+            background-color: var(--surface-color); /* More opaque */
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            box-sizing: border-box;
+        }
+        /* Removed daily-schedule-section from capture-page */
+
+
+        .daily-reminders-section .input-section {
+            margin-bottom: 20px; /* Smaller margin for reminder input */
+        }
+        .daily-reminders-section .input-section input[type="text"] {
+            min-width: 100px; /* Allow smaller input for reminders */
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item { /* For unassigned tasks and reminders */
+            display: flex;
+            align-items: center;
+            background-color: var(--surface-color); /* More opaque */
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--border-color); /* Border for priority */
+            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        .task-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px var(--shadow-medium);
+        }
+
+        /* Fixed task specific style */
+        .task-item.is-fixed {
+            background-color: var(--fixed-task-bg);
+            border-left-color: var(--fixed-task-border);
+        }
+
+        /* Priority Styles */
+        .task-item.priority-Urgent, .schedule-task-item.priority-Urgent {
+            border-left-color: var(--priority-urgent);
+            background-color: var(--priority-urgent-bg);
+        }
+        .task-item.priority-Important, .schedule-task-item.priority-Important {
+            border-left-color: var(--priority-important);
+            background-color: var(--priority-important-bg);
+        }
+        .task-item.priority-Normal, .schedule-task-item.priority-Normal {
+            border-left-color: var(--priority-normal);
+            background-color: var(--priority-normal-bg);
+        }
+
+        .task-item.completed {
+            background-color: #E8F5E9; /* A very light green for completed, solid */
+            opacity: 0.8;
+            border-left-color: #a5d6a7; /* Softer color for completed */
+        }
+
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+            color: var(--light-text-color);
+        }
+
+        .task-checkbox {
+            margin-right: 15px;
+            min-width: 20px;
+            min-height: 20px;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        .task-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .task-text {
+            font-size: 1.1em;
+            color: var(--text-color);
+            word-break: break-word;
+            margin-bottom: 5px;
+        }
+
+        .task-priority-display {
+            font-size: 0.85em;
+            color: var(--text-color); /* Changed to text-color for better contrast on solid background */
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .task-responsible-display { /* New style for responsible person */
+            font-size: 0.8em;
+            color: var(--text-color); /* Changed to text-color for better contrast */
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 20px;
+        }
+
+        .task-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: var(--light-text-color);
+            transition: color 0.3s ease;
+            padding: 5px;
+        }
+
+        .task-actions button:hover {
+            color: var(--secondary-color);
+        }
+
+        .task-actions button.delete-btn:hover {
+            color: #e53935;
+        }
+        .task-actions button.assign-btn {
+            background-color: var(--secondary-color); /* Fluorescent yellow */
+            color: var(--text-color); /* Dark text on yellow */
+            padding: 8px 12px;
+            font-size: 0.9em;
+            border-radius: 6px;
+        }
+        .task-actions button.assign-btn:hover {
+            background-color: #FBC02D; /* Darker yellow */
+            color: var(--text-color);
+        }
+
+        /* Drag and Drop styles */
+        .task-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--primary-color);
+        }
+        .schedule-cell.drag-over {
+            background-color: rgba(0, 188, 212, 0.2); /* Light cyan overlay */
+            border: 2px dashed var(--primary-color);
+        }
+
+
+        .empty-state {
+            text-align: center;
+            color: var(--light-text-color);
+            font-size: 1.1em;
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+        }
+
+        /* Schedule Grid Styles */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr; /* Column for time, column for activity */
+            grid-auto-rows: minmax(25px, auto); /* Each 15-min slot is 25px min height */
+            gap: 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .time-label-cell { /* Cell in the first column for the time label */
+            grid-column: 1;
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start; /* Align text to the top of the slot */
+            padding-top: 10px;
+            font-size: 0.9em;
+            color: var(--text-color);
+            line-height: 1;
+            background-color: #E0E0E0; /* Solid light grey for consistency */
+        }
+
+        .time-label-cell.hourly-label { /* Specific styles for hourly labels */
+            background-color: #D0D0D0; /* Slightly darker solid grey */
+            font-weight: 500;
+            justify-content: center;
+        }
+
+        .schedule-cell { /* Empty cell in the schedule */
+            grid-column: 2;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--empty-slot-bg); /* Solid light grey */
+            box-sizing: border-box;
+        }
+
+        /* Remove bottom border from the last row */
+        .schedule-grid > *:nth-last-child(2),
+        .schedule-grid > *:last-child {
+            border-bottom: none;
+        }
+
+        .schedule-task-item { /* The actual task displayed in the schedule */
+            grid-column: 2;
+            width: calc(100% - 2px);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 5px 10px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px var(--shadow-light);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            margin: 1px;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid; /* Priority border */
+        }
+
+        .schedule-task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px var(--shadow-medium);
+        }
+
+        .schedule-task-item.completed {
+            background-color: #E8F5E9; /* A very light green for completed, solid */
+            opacity: 0.8;
+            border-left-color: #a5d6a7; /* Softer color for completed */
+        }
+
+        .schedule-task-item.completed .task-text {
+             text-decoration: line-through;
+             color: var(--light-text-color);
+        }
+        .schedule-task-item.completed .task-priority-display {
+             color: var(--light-text-color);
+        }
+
+        /* Fixed task style in schedule */
+        .schedule-task-item.is-fixed {
+            background-color: var(--fixed-task-bg); /* Solid light green */
+            border-left-color: var(--fixed-task-border);
+        }
+
+
+        .schedule-task-item .task-text {
+            font-size: 1em;
+            margin-bottom: 2px;
+            word-break: break-word;
+        }
+        .schedule-task-item .task-priority-display {
+            font-size: 0.75em;
+            color: var(--text-color); /* Changed to text-color for better contrast */
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .schedule-task-item .task-score { /* New style for score display */
+            font-size: 0.75em;
+            color: var(--secondary-color); /* Fluorescent yellow */
+            font-weight: 700;
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            /* Removed background and padding */
+            z-index: 2;
+        }
+        /* Checkbox and actions positioning within schedule-task-item */
+        .schedule-task-item .task-checkbox {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            margin-right: 0;
+            z-index: 2;
+        }
+        .schedule-task-item .task-actions {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            margin-left: 0;
+            background-color: rgba(255, 255, 255, 0.0); /* Made transparent */
+            border-radius: 5px;
+            padding: 2px;
+            display: flex;
+            gap: 2px;
+            z-index: 2;
+        }
+        .schedule-task-item .task-actions button {
+            font-size: 1em;
+            padding: 3px;
+            color: var(--light-text-color);
+        }
+        .schedule-task-item .task-content {
+            padding-right: 40px; /* Make space for checkbox */
+            padding-bottom: 25px; /* Make space for action buttons */
+        }
+
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--surface-color); /* More opaque */
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px var(--shadow-medium);
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh; /* Set max height to 90% of viewport height */
+            overflow-y: auto; /* Add scroll if content exceeds max-height */
+            text-align: center;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .modal-content.large { /* For AI analysis modal */
+            max-width: 600px;
+            text-align: left;
+        }
+
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .modal-content h3 {
+            color: var(--text-color);
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-size: 1.4em;
+        }
+
+        .modal-content p {
+            color: var(--light-text-color);
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .modal-content label {
+            text-align: left;
+            font-size: 0.9em;
+            color: var(--light-text-color);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .modal-content input[type="text"],
+        .modal-content select,
+        .modal-content textarea { /* Added textarea */
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box; /* Prevent overflow */
+        }
+        .modal-content textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+            /* Ensure buttons are at the bottom and visible */
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+            padding-top: 10px; /* Add some padding above buttons */
+            background-color: var(--surface-color); /* Match modal background for seamless look */
+            border-top: 1px solid var(--border-color); /* Optional: a subtle separator */
+            position: sticky; /* Stick to the bottom of the scrollable area */
+            bottom: 0;
+            z-index: 1001; /* Ensure buttons are above scrollable content */
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .modal-buttons button.confirm-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .modal-buttons button.confirm-btn:hover {
+            background-color: var(--primary-dark-color);
+            transform: translateY(-1px);
+        }
+
+        .modal-buttons button.cancel-btn {
+            background-color: #e0e0e0;
+            color: var(--text-color);
+        }
+
+        .modal-buttons button.cancel-btn:hover {
+            background-color: #bdbdbd;
+            transform: translateY(-1px);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-nav {
+                display: none; /* Hide regular nav on small screens */
+            }
+            .hamburger-menu {
+                display: flex; /* Show hamburger */
+                margin-bottom: 20px;
+                align-self: flex-end; /* Position it on the right */
+            }
+            .container {
+                padding: 15px;
+                margin-top: 20px;
+            }
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+            h2 {
+                font-size: 1.4em;
+                margin-bottom: 15px;
+            }
+            .input-section {
+                flex-direction: column;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .input-section input, .input-section select, .input-section button, .input-section textarea {
+                width: 100%;
+                min-width: unset;
+            }
+            #capture-page .main-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+            #capture-page .unassigned-tasks-section,
+            #capture-page .daily-reminders-section {
+                width: 100%;
+            }
+            .task-item {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 10px 15px;
+            }
+            .task-checkbox {
+                margin-bottom: 8px;
+                margin-right: 0;
+            }
+            .task-content {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            .task-actions {
+                margin-left: 0;
+                width: 100%;
+                justify-content: flex-end;
+            }
+            .schedule-grid {
+                grid-template-columns: 60px 1fr;
+            }
+            .time-label-cell {
+                padding-top: 5px;
+                font-size: 0.8em;
+            }
+            .schedule-task-item {
+                padding: 3px 8px;
+            }
+            .schedule-task-item .task-text {
+                font-size: 0.9em;
+            }
+            .schedule-task-item .task-priority-display {
+                font-size: 0.65em;
+            }
+            .modal-content {
+                padding: 20px;
+                max-width: 95%;
+            }
+            .modal-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .modal-buttons button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Timeboxing</h1>
+
+        <!-- Hamburger Menu Icon -->
+        <div class="hamburger-menu" id="hamburgerMenu">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+
+        <!-- Main Navigation (hidden on small screens, visible on large) -->
+        <nav class="main-nav" id="mainNav">
+            <button data-page="backlog-page" class="active">Backlog</button>
+            <button data-page="capture-page">Capture</button>
+            <button data-page="schedule-page">Schedule</button>
+            <button data-page="fixed-activities-page">Fixed Activities</button>
+            <button data-page="statistics-page">Statistics</button>
+            <button data-page="dashboard-page">Dashboard</button>
+        </nav>
+
+        <!-- Mobile Navigation Overlay -->
+        <div class="mobile-nav-overlay" id="mobileNavOverlay">
+            <button class="close-btn" id="closeMobileNav">&times;</button>
+            <button data-page="backlog-page" class="mobile-nav-btn">Backlog</button>
+            <button data-page="capture-page" class="mobile-nav-btn">Capture</button>
+            <button data-page="schedule-page" class="mobile-nav-btn">Schedule</button>
+            <button data-page="fixed-activities-page" class="mobile-nav-btn">Fixed Activities</button>
+            <button data-page="statistics-page" class="mobile-nav-btn">Statistics</button>
+            <button data-page="dashboard-page" class="mobile-nav-btn">Dashboard</button>
+        </div>
+
+
+        <!-- Backlog Page -->
+        <div id="backlog-page" class="app-page active">
+            <h2>Backlog</h2>
+            <div class="input-section">
+                <input type="text" id="backlogInput" placeholder="Add task to backlog..." aria-label="Add task to backlog">
+                <button id="addBacklogBtn">Add to Backlog</button>
+            </div>
+            <ul class="task-list" id="backlogList"></ul>
+            <div class="empty-state" id="emptyBacklogState">No tasks in backlog.</div>
+        </div>
+
+        <!-- Capture Page -->
+        <div id="capture-page" class="app-page">
+            <div class="input-section">
+                <input type="date" id="captureDate" aria-label="Select Date">
+                <input type="text" id="taskInput" placeholder="Add new activity..." aria-label="Add new activity">
+                <button id="addTaskBtn">Add Activity</button>
+            </div>
+
+            <div class="main-content">
+                <div class="unassigned-tasks-section">
+                    <h2>Unassigned Tasks</h2>
+                    <ul class="task-list" id="unassignedTaskList">
+                        <!-- Unassigned tasks will be added here -->
+                    </ul>
+                    <div class="empty-state" id="emptyUnassignedState">
+                        No unassigned tasks.
+                    </div>
+                </div>
+
+                <!-- Daily Reminders Section -->
+                <div class="daily-reminders-section">
+                    <h2>Daily Reminders</h2>
+                    <div class="input-section reminder-input">
+                        <input type="text" id="reminderInput" placeholder="Add reminder..." aria-label="Add new reminder">
+                        <button id="addReminderBtn">Add</button>
+                    </div>
+                    <ul class="task-list" id="reminderList">
+                        <!-- Reminders will go here -->
+                    </ul>
+                    <div class="empty-state" id="emptyReminderState">
+                        No reminders.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Page -->
+        <div id="schedule-page" class="app-page">
+            <h2>My Daily Schedule</h2>
+            <div class="schedule-grid" id="scheduleGrid">
+                <!-- Time slots and assigned tasks will be added here -->
+            </div>
+            <div class="empty-state" id="emptyScheduleState" style="display: none;">
+                Your schedule is empty. Assign some tasks!
+            </div>
+        </div>
+
+        <!-- Fixed Activities Page -->
+        <div id="fixed-activities-page" class="app-page">
+            <h2>Fixed Activities</h2>
+            <div class="input-section">
+                <input type="text" id="fixedTaskInput" placeholder="Add fixed activity..." aria-label="Add fixed activity">
+                <button id="addFixedTaskBtn">Add Fixed</button>
+            </div>
+            <ul class="task-list" id="fixedTaskList"></ul>
+            <div class="empty-state" id="emptyFixedState">No fixed activities.</div>
+        </div>
+
+        <!-- Statistics Page -->
+        <div id="statistics-page" class="app-page">
+            <div class="statistics-section">
+                <h2>Statistics</h2>
+                <div class="input-section" style="justify-content: center;">
+                    <input type="date" id="statsDate" aria-label="Select Statistics Date">
+                </div>
+                <div class="stats-summary">
+                    <p>Goal Score: <span id="goalScore">0</span></p>
+                    <p>Completed Tasks: <span id="completedTasksCount">0</span></p>
+                    <p>Total Score for the Day: <span id="totalScore">0</span></p>
+                    <p>Completion Percentage: <span id="completionPercentage">0%</span></p>
+                </div>
+                <div class="input-section" style="flex-direction: column; align-items: stretch;">
+                    <label for="observationsTextarea" style="text-align: left; margin-bottom: 5px;">Observations:</label>
+                    <textarea id="observationsTextarea" placeholder="Write your observations for the day..."></textarea>
+                    <button id="recObservationsBtn" style="margin-top: 10px; margin-right: 10px;">Rec</button>
+                    <button id="saveObservationsBtn" style="margin-top: 10px;">Save Observations</button>
+                </div>
+                <div class="empty-state" id="emptyStatsState">Complete tasks to see your statistics.</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="app-page">
+            <h2>Dashboard</h2>
+            <p>Here you'll see a summary of your daily progress.</p>
+            <div style="width: 100%; max-width: 800px; margin: 20px auto; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <canvas id="scoreChart"></canvas>
+            </div>
+            <div class="empty-state" id="emptyDashboardState" style="display: none;">
+                No data available to display in the dashboard. Complete some tasks!
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal HTML -->
+    <div class="modal-overlay" id="customModal">
+        <div class="modal-content">
+            <h3 id="modalTitle"></h3>
+            <p id="modalMessage"></p>
+            <input type="text" id="modalInput" style="display: none;">
+            <label for="modalPrioritySelect" id="modalPriorityLabel" style="display: none;">Priority:</label>
+            <select id="modalPrioritySelect" style="display: none;" aria-label="Activity priority">
+                <option value="Normal">Normal</option>
+                <option value="Important">Important</option>
+                <option value="Urgent">Urgent</option>
+            </select>
+            <label for="modalTimeSlotSelect" id="modalTimeSlotLabel" style="display: none;">Assign to time slot:</label>
+            <select id="modalTimeSlotSelect" style="display: none;" aria-label="Activity time slot">
+                <!-- Options will be dynamically populated -->
+            </select>
+            <label for="modalDurationSelect" id="modalDurationLabel" style="display: none;">Duration:</label>
+            <select id="modalDurationSelect" style="display: none;" aria-label="Activity duration">
+                <!-- Options will be dynamically populated -->
+            </select>
+            <label for="modalResponsibleInput" id="modalResponsibleLabel" style="display: none;">Responsible:</label>
+            <input type="text" id="modalResponsibleInput" style="display: none;" placeholder="Responsible person (optional)">
+
+            <div class="modal-buttons">
+                <button class="confirm-btn" id="modalConfirmBtn">OK</button>
+                <button class="cancel-btn" id="modalCancelBtn" style="display: none;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Main App Elements
+            const navButtons = document.querySelectorAll('.main-nav button');
+            const appPages = document.querySelectorAll('.app-page');
+            const hamburgerMenu = document.getElementById('hamburgerMenu');
+            const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+            const closeMobileNav = document.getElementById('closeMobileNav');
+            const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+
+
+            // Capture Page Elements
+            const captureDateInput = document.getElementById('captureDate');
+            const taskInput = document.getElementById('taskInput');
+            const addTaskBtn = document.getElementById('addTaskBtn');
+            const unassignedTaskList = document.getElementById('unassignedTaskList');
+            const emptyUnassignedState = document.getElementById('emptyUnassignedState');
+
+            const reminderInput = document.getElementById('reminderInput');
+            const addReminderBtn = document.getElementById('addReminderBtn');
+            const reminderList = document.getElementById('reminderList');
+            const emptyReminderState = document.getElementById('emptyReminderState');
+
+            // Schedule Page Elements
+            const scheduleGrid = document.getElementById('scheduleGrid');
+            const emptyScheduleState = document.getElementById('emptyScheduleState');
+
+            // Backlog Page Elements
+            const backlogInput = document.getElementById('backlogInput');
+            const addBacklogBtn = document.getElementById('addBacklogBtn');
+            const backlogList = document.getElementById('backlogList');
+            const emptyBacklogState = document.getElementById('emptyBacklogState');
+
+            // Fixed Activities Page Elements
+            const fixedTaskInput = document.getElementById('fixedTaskInput');
+            const addFixedTaskBtn = document.getElementById('addFixedTaskBtn');
+            const fixedTaskList = document.getElementById('fixedTaskList');
+            const emptyFixedState = document.getElementById('emptyFixedState');
+
+            // Statistics Page Elements
+            const statsDateInput = document.getElementById('statsDate');
+            const goalScoreSpan = document.getElementById('goalScore');
+            const completedTasksCountSpan = document.getElementById('completedTasksCount');
+            const totalScoreSpan = document.getElementById('totalScore');
+            const completionPercentageSpan = document.getElementById('completionPercentage');
+            const observationsTextarea = document.getElementById('observationsTextarea');
+            const recObservationsBtn = document.getElementById('recObservationsBtn'); // New Rec button
+            const saveObservationsBtn = document.getElementById('saveObservationsBtn');
+            const emptyStatsState = document.getElementById('emptyStatsState');
+
+            // Dashboard Page Elements
+            const dashboardCanvas = document.getElementById('scoreChart');
+            const emptyDashboardState = document.getElementById('emptyDashboardState');
+            let scoreChartInstance = null; // To hold the Chart.js instance
+
+            // Modal elements
+            const customModal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalInput = document.getElementById('modalInput');
+            const modalPrioritySelect = document.getElementById('modalPrioritySelect');
+            const modalPriorityLabel = document.getElementById('modalPriorityLabel');
+            const modalTimeSlotSelect = document.getElementById('modalTimeSlotSelect');
+            const modalTimeSlotLabel = document.getElementById('modalTimeSlotLabel');
+            const modalDurationSelect = document.getElementById('modalDurationSelect');
+            const modalDurationLabel = document.getElementById('modalDurationLabel');
+            const modalResponsibleInput = document.getElementById('modalResponsibleInput');
+            const modalResponsibleLabel = document.getElementById('modalResponsibleLabel');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+            // Data storage
+            let timeboxData = JSON.parse(localStorage.getItem('timebox_data')) || {
+                tasksByDate: {},
+                remindersByDate: {},
+                fixedActivities: [],
+                dailyScores: {},
+                dailyObservations: {},
+                backlog: [] // New backlog array
+            };
+
+            let currentDate = new Date(); // Date for Capture/Dashboard
+            let statsDate = new Date(); // Date for Statistics page
+
+            // Global variable to store the ID of the task being dragged
+            let draggedItemId = null;
+            let draggedItemType = null;
+            let draggedItemOriginalDuration = null; // To store original duration for drag-drop
+
+            // Helper function to generate unique IDs
+            const generateUniqueId = () => '_' + Math.random().toString(36).substr(2, 9);
+
+            // Helper function to format date to YYYY-MM-DD
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            // Helper function to convert time string "HH:MM" to total minutes from midnight
+            const timeToMinutes = (timeString) => {
+                if (!timeString) return null;
+                const [hours, minutes] = timeString.split(':').map(Number);
+                return hours * 60 + minutes;
+            };
+
+            // Helper function to convert total minutes from midnight to time string "HH:MM"
+            const minutesToTime = (totalMinutes) => {
+                if (totalMinutes === null) return null;
+                const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+                const minutes = String(totalMinutes % 60).padStart(2, '0');
+                return `${hours}:${minutes}`;
+            };
+
+            // Options for the duration dropdown (extended to 4 hours)
+            const durationOptions = [
+                { value: 15, text: '15 min' },
+                { value: 30, text: '30 min' },
+                { value: 60, text: '1 hr' },
+                { value: 90, text: '1.5 hrs' },
+                { value: 120, text: '2 hrs' },
+                { value: 150, text: '2.5 hrs' },
+                { value: 180, text: '3 hrs' },
+                { value: 240, text: '4 hrs' }
+            ];
+
+            // Fibonacci sequence for scoring: 1, 2, 3, 5, 8, 13
+            const fib = [0, 1, 2, 3, 5, 8, 13];
+            const priorityScores = {
+                'Normal': fib[1],     // 1
+                'Important': fib[2], // 2
+                'Urgent': fib[3]     // 3
+            };
+            const durationScores = {
+                15: fib[1],   // 1
+                30: fib[2],   // 2
+                60: fib[3],   // 3
+                90: fib[4],   // 5
+                120: fib[5],  // 8
+                150: fib[6],  // 13
+                180: fib[6],  // 13 (capped at fib[6] as per user request)
+                240: fib[6]   // 13 (capped at fib[6] as per user request)
+            };
+
+            // Helper function to show custom modal
+            const showModal = (title, message, isPrompt = false, defaultValue = '', isConfirm = false, currentPriority = 'Normal', currentAssignedSlot = null, currentDuration = 30, isReminderAssignment = false, isLarge = false, itemIdBeingEdited = null, currentResponsible = '') => {
+                return new Promise((resolve) => {
+                    modalTitle.textContent = title;
+                    modalMessage.textContent = message;
+
+                    modalInput.style.display = isPrompt ? 'block' : 'none';
+                    modalPrioritySelect.style.display = isPrompt ? 'block' : 'none';
+                    modalPriorityLabel.style.display = isPrompt ? 'block' : 'none';
+                    modalTimeSlotSelect.style.display = isPrompt || isReminderAssignment ? 'block' : 'none';
+                    modalTimeSlotLabel.style.display = isPrompt || isReminderAssignment ? 'block' : 'none';
+                    modalDurationSelect.style.display = isPrompt || isReminderAssignment ? 'block' : 'none';
+                    modalDurationLabel.style.display = isPrompt || isReminderAssignment ? 'block' : 'none';
+                    modalResponsibleInput.style.display = isPrompt ? 'block' : 'none'; // Show responsible input for task editing
+                    modalResponsibleLabel.style.display = isPrompt ? 'block' : 'none'; // Show responsible label for task editing
+
+
+                    // Adjust modal size
+                    if (isLarge) {
+                        customModal.querySelector('.modal-content').classList.add('large');
+                    } else {
+                        customModal.querySelector('.modal-content').classList.remove('large');
+                    }
+
+
+                    if (isPrompt || isReminderAssignment) {
+                        modalInput.value = defaultValue;
+                        modalInput.focus();
+                        modalInput.select();
+                        modalPrioritySelect.value = currentPriority;
+                        modalResponsibleInput.value = currentResponsible; // Set current responsible
+
+                        modalTimeSlotSelect.innerHTML = '<option value="">Unassigned</option>'; // Option for unassigned
+                        const all15MinTimeSlots = generateAll15MinTimeSlots();
+
+                        const tasksForCurrentDate = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+
+                        all15MinTimeSlots.forEach(slot => {
+                            const hypotheticalTask = {
+                                id: generateUniqueId(), // A fresh dummy ID for each hypothetical slot
+                                text: defaultValue,
+                                priority: currentPriority,
+                                assignedSlot: slot.time,
+                                duration: currentDuration
+                            };
+
+                            // Pass the ID of the item being edited so checkOverlap can exclude it
+                            // For fixed tasks, the ID used for overlap check is prefixed
+                            const excludeIdForOverlap = itemIdBeingEdited && itemIdBeingEdited.startsWith('fixed-') ? `fixed-overlap-check-${itemIdBeingEdited.substring(6)}` : itemIdBeingEdited;
+
+                            if (!checkOverlap(hypotheticalTask, tasksForCurrentDate, timeboxData.fixedActivities, excludeIdForOverlap)) {
+                                const option = document.createElement('option');
+                                option.value = slot.time;
+                                option.textContent = slot.time;
+                                modalTimeSlotSelect.appendChild(option);
+                            }
+                        });
+                        // Set the value AFTER populating options
+                        if (currentAssignedSlot) {
+                            modalTimeSlotSelect.value = currentAssignedSlot;
+                        } else {
+                            modalTimeSlotSelect.value = ''; // Ensure it's unassigned if no slot
+                        }
+
+
+                        modalDurationSelect.innerHTML = '';
+                        durationOptions.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.text;
+                            modalDurationSelect.appendChild(option);
+                        });
+                        modalDurationSelect.value = currentDuration;
+                    }
+
+                    modalCancelBtn.style.display = isConfirm || isPrompt || isReminderAssignment ? 'inline-block' : 'none';
+                    modalConfirmBtn.textContent = isPrompt || isReminderAssignment ? 'Save' : (isConfirm ? 'Yes' : 'OK');
+
+                    customModal.classList.add('active');
+
+                    const handleConfirm = () => {
+                        customModal.classList.remove('active');
+                        modalConfirmBtn.removeEventListener('click', handleConfirm);
+                        modalCancelBtn.removeEventListener('click', handleCancel);
+                        if (isPrompt || isReminderAssignment) {
+                            resolve({
+                                text: modalInput.value.trim(),
+                                priority: modalPrioritySelect.value,
+                                assignedSlot: modalTimeSlotSelect.value || null,
+                                duration: parseInt(modalDurationSelect.value),
+                                responsible: modalResponsibleInput.value.trim() // Get responsible value
+                            });
+                        } else {
+                            resolve(true);
+                        }
+                    };
+
+                    const handleCancel = () => {
+                        customModal.classList.remove('active');
+                        modalConfirmBtn.removeEventListener('click', handleConfirm);
+                        modalCancelBtn.removeEventListener('click', handleCancel);
+                        resolve(false);
+                    };
+
+                    modalConfirmBtn.addEventListener('click', handleConfirm);
+                    modalCancelBtn.addEventListener('click', handleCancel);
+
+                    const handleKeyPress = (e) => {
+                        if (e.key === 'Enter' && (isPrompt || isReminderAssignment)) {
+                            handleConfirm();
+                            document.removeEventListener('keypress', handleKeyPress);
+                        }
+                    };
+                    if (isPrompt || isReminderAssignment) {
+                        document.addEventListener('keypress', handleKeyPress);
+                    }
+                });
+            };
+
+            // Function to generate all 15-minute time slots (internal use for grid structure and logic)
+            const generateAll15MinTimeSlots = () => {
+                const slots = [];
+                for (let h = 8; h <= 22; h++) {
+                    for (let m = 0; m < 60; m += 15) {
+                        const hour = String(h).padStart(2, '0');
+                        const minute = String(m).padStart(2, '0');
+                        slots.push({ time: `${hour}:${minute}` });
+                    }
+                }
+                return slots;
+            };
+
+            // --- Page Navigation Logic ---
+            let currentPageId = 'backlog-page'; // Default active page
+
+            const showPage = (pageId) => {
+                appPages.forEach(page => page.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+
+                navButtons.forEach(button => button.classList.remove('active'));
+                const activeButton = document.querySelector(`button[data-page="${pageId}"]`);
+                if (activeButton) {
+                    activeButton.classList.add('active');
+                }
+
+                // Also update mobile nav buttons
+                mobileNavButtons.forEach(button => button.classList.remove('active'));
+                const activeMobileButton = document.querySelector(`.mobile-nav-overlay button[data-page="${pageId}"]`);
+                if (activeMobileButton) {
+                    activeMobileButton.classList.add('active');
+                }
+
+                currentPageId = pageId;
+
+                // Close mobile nav if open
+                mobileNavOverlay.classList.remove('active');
+
+                // Re-render content for the active page
+                switch (pageId) {
+                    case 'capture-page':
+                        renderCapturePage();
+                        break;
+                    case 'schedule-page':
+                        renderSchedulePage();
+                        break;
+                    case 'backlog-page':
+                        renderBacklogPage();
+                        break;
+                    case 'fixed-activities-page':
+                        renderFixedActivitiesPage();
+                        break;
+                    case 'statistics-page':
+                        renderStatisticsPage();
+                        break;
+                    case 'dashboard-page':
+                        renderDashboardPage();
+                        break;
+                }
+            };
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    showPage(button.dataset.page);
+                });
+            });
+
+            // Hamburger menu functionality
+            hamburgerMenu.addEventListener('click', () => {
+                mobileNavOverlay.classList.toggle('active');
+            });
+
+            closeMobileNav.addEventListener('click', () => {
+                mobileNavOverlay.classList.remove('active');
+            });
+
+            mobileNavButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    showPage(button.dataset.page);
+                });
+            });
+
+
+            // --- Render Functions for Each Page ---
+
+            const renderCapturePage = () => {
+                captureDateInput.value = formatDate(currentDate);
+                renderUnassignedTasks();
+                renderReminders();
+            };
+
+            const renderSchedulePage = () => {
+                renderSchedule();
+            };
+
+            const renderBacklogPage = () => {
+                backlogList.innerHTML = '';
+                if (timeboxData.backlog.length === 0) {
+                    emptyBacklogState.style.display = 'block';
+                } else {
+                    emptyBacklogState.style.display = 'none';
+                    timeboxData.backlog.forEach(item => {
+                        const listItem = document.createElement('li');
+                        listItem.classList.add('task-item');
+                        listItem.classList.add(`priority-${item.priority || 'Normal'}`); // Backlog items default to Normal priority
+                        listItem.dataset.itemId = item.id;
+                        listItem.dataset.itemType = 'backlog';
+                        listItem.innerHTML = `
+                            <div class="task-content">
+                                <span class="task-text">${item.text}</span>
+                                <span class="task-priority-display">Priority: ${item.priority || 'Normal'}</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="send-to-unassigned-btn" aria-label="Send to Unassigned Tasks">Send to Unassigned</button>
+                                <button class="delete-backlog-btn" aria-label="Delete backlog item">&times;</button>
+                            </div>
+                        `;
+                        backlogList.appendChild(listItem);
+                    });
+                }
+            };
+
+            const renderFixedActivitiesPage = () => {
+                fixedTaskList.innerHTML = '';
+                if (timeboxData.fixedActivities.length === 0) {
+                    emptyFixedState.style.display = 'block';
+                } else {
+                    emptyFixedState.style.display = 'none';
+                    const priorityOrder = { 'Urgent': 1, 'Important': 2, 'Normal': 3 };
+                    timeboxData.fixedActivities.sort((a, b) => {
+                        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+                        if (priorityDiff !== 0) return priorityDiff;
+                        if (a.defaultAssignedSlot && b.defaultAssignedSlot) {
+                            return timeToMinutes(a.defaultAssignedSlot) - timeToMinutes(b.defaultAssignedSlot);
+                        }
+                        if (b.defaultAssignedSlot) return 1;
+                        if (a.defaultAssignedSlot) return -1;
+                        return 0;
+                    });
+
+                    timeboxData.fixedActivities.forEach(fixedTask => {
+                        const listItem = createTaskListItem(fixedTask, false, 'fixed');
+                        fixedTaskList.appendChild(listItem);
+                    });
+                }
+            };
+
+            const renderStatisticsPage = () => {
+                statsDateInput.value = formatDate(statsDate);
+                const dailyStats = timeboxData.dailyScores[formatDate(statsDate)] || { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                const dailyObservations = timeboxData.dailyObservations[formatDate(statsDate)] || '';
+
+                let calculatedGoalScore = 0;
+                // Calculate goal score from regular tasks
+                const tasksForToday = timeboxData.tasksByDate[formatDate(statsDate)] || [];
+                tasksForToday.filter(task => task.assignedSlot !== null).forEach(task => {
+                    calculatedGoalScore += Math.min(13, (priorityScores[task.priority] || 0) * (durationScores[task.duration] || 0));
+                });
+                // Calculate goal score from fixed activities
+                timeboxData.fixedActivities.forEach(fixedTask => {
+                    if (fixedTask.defaultAssignedSlot) {
+                        calculatedGoalScore += Math.min(13, (priorityScores[fixedTask.priority] || 0) * (durationScores[fixedTask.duration] || 0));
+                    }
+                });
+
+                // Update the stored goalScore for the day
+                dailyStats.goalScore = calculatedGoalScore;
+                timeboxData.dailyScores[formatDate(statsDate)] = dailyStats; // Ensure it's saved back
+                saveAllData(); // Save the updated dailyScores
+
+                goalScoreSpan.textContent = dailyStats.goalScore;
+                completedTasksCountSpan.textContent = dailyStats.completedTasksCount;
+                totalScoreSpan.textContent = dailyStats.totalScore;
+
+                const percentage = dailyStats.goalScore > 0 ? ((dailyStats.totalScore / dailyStats.goalScore) * 100).toFixed(2) : 0;
+                completionPercentageSpan.textContent = `${percentage}%`;
+
+                observationsTextarea.value = dailyObservations;
+
+                if (dailyStats.completedTasksCount === 0 && dailyStats.goalScore === 0) {
+                    emptyStatsState.style.display = 'block';
+                } else {
+                    emptyStatsState.style.display = 'none';
+                }
+            };
+
+            const renderDashboardPage = () => {
+                // Get data for the last 7 days, but only for dates with actual scores
+                const labels = [];
+                const goalScores = [];
+                const totalScores = [];
+                let hasData = false;
+
+                const allDatesWithScores = Object.keys(timeboxData.dailyScores).sort();
+
+                // Filter dates to only include those with data within the last 7 days
+                const recentDatesWithData = allDatesWithScores.filter(dateString => {
+                    const date = new Date(dateString);
+                    const diffTime = Math.abs(currentDate.getTime() - date.getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays <= 7 && (timeboxData.dailyScores[dateString].goalScore > 0 || timeboxData.dailyScores[dateString].totalScore > 0);
+                });
+
+                // Populate labels and scores only for dates with data
+                recentDatesWithData.forEach(dateString => {
+                    labels.push(dateString);
+                    const dailyStats = timeboxData.dailyScores[dateString];
+                    goalScores.push(dailyStats.goalScore);
+                    totalScores.push(dailyStats.totalScore);
+                    hasData = true; // Mark that we have data
+                });
+
+                if (!hasData) {
+                    emptyDashboardState.style.display = 'block';
+                    dashboardCanvas.style.display = 'none';
+                    if (scoreChartInstance) {
+                        scoreChartInstance.destroy();
+                        scoreChartInstance = null;
+                    }
+                    return;
+                } else {
+                    emptyDashboardState.style.display = 'none';
+                    dashboardCanvas.style.display = 'block';
+                }
+
+                const chartData = {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Goal Score',
+                            data: goalScores,
+                            backgroundColor: 'rgba(0, 188, 212, 0.7)',
+                            borderColor: 'rgba(0, 188, 212, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Total Score Achieved',
+                            data: totalScores,
+                            backgroundColor: 'rgba(255, 235, 59, 0.7)',
+                            borderColor: 'rgba(255, 235, 59, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                };
+
+                const chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Score'
+                            },
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Daily Score Comparison (Last 7 Days with Data)',
+                            color: 'black',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 10
+                            },
+                            backgroundColor: 'white',
+                            borderRadius: 5
+                        },
+                        legend: {
+                            labels: {
+                                boxWidth: 20,
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 10,
+                            right: 10,
+                            top: 10,
+                            bottom: 10
+                        }
+                    }
+                };
+
+                if (scoreChartInstance) {
+                    scoreChartInstance.data = chartData;
+                    scoreChartInstance.options = chartOptions;
+                    scoreChartInstance.update();
+                } else {
+                    scoreChartInstance = new Chart(dashboardCanvas, {
+                        type: 'bar',
+                        data: chartData,
+                        options: chartOptions
+                    });
+                }
+            };
+
+
+            const renderUnassignedTasks = () => {
+                unassignedTaskList.innerHTML = '';
+                const tasksForCurrentDate = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+                const unassigned = tasksForCurrentDate.filter(task => task.assignedSlot === null && !task.isFixed);
+
+                if (unassigned.length === 0) {
+                    emptyUnassignedState.style.display = 'block';
+                } else {
+                    emptyUnassignedState.style.display = 'none';
+                    const priorityOrder = { 'Urgent': 1, 'Important': 2, 'Normal': 3 };
+                    unassigned.sort((a, b) => {
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    });
+
+                    unassigned.forEach(task => {
+                        const listItem = createTaskListItem(task, false, 'task');
+                        // Make unassigned tasks draggable
+                        listItem.draggable = true;
+                        listItem.addEventListener('dragstart', handleDragStart);
+                        unassignedTaskList.appendChild(listItem);
+                    });
+                }
+            };
+
+            const renderReminders = () => {
+                reminderList.innerHTML = '';
+                const remindersForCurrentDate = timeboxData.remindersByDate[formatDate(currentDate)] || [];
+
+                if (remindersForCurrentDate.length === 0) {
+                    emptyReminderState.style.display = 'block';
+                } else {
+                    emptyReminderState.style.display = 'none';
+                    const priorityOrder = { 'Urgent': 1, 'Important': 2, 'Normal': 3 };
+                    remindersForCurrentDate.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+                    remindersForCurrentDate.forEach(reminder => {
+                        const listItem = createTaskListItem(reminder, false, 'reminder');
+                        reminderList.appendChild(listItem);
+                    });
+                }
+            };
+
+            const renderSchedule = () => {
+                scheduleGrid.innerHTML = '';
+                const all15MinSlots = generateAll15MinTimeSlots();
+                const timeToIndex = {};
+                all15MinSlots.forEach((slot, index) => {
+                    timeToIndex[slot.time] = index + 1;
+                });
+
+                let hasAssignedTasks = false;
+                const occupiedCells = {};
+
+                const tasksForSchedule = [];
+
+                // Add regular tasks for the current date
+                const regularTasksToday = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+                regularTasksToday.forEach(task => {
+                    if (task.assignedSlot) {
+                        tasksForSchedule.push(task);
+                    }
+                });
+
+                // Add fixed activities that have a default assigned slot
+                timeboxData.fixedActivities.forEach(fixedTask => {
+                    if (fixedTask.defaultAssignedSlot) {
+                        const isCompletedToday = fixedTask.completedDates && fixedTask.completedDates.includes(formatDate(currentDate));
+                        tasksForSchedule.push({
+                            id: fixedTask.id,
+                            text: fixedTask.text,
+                            completed: isCompletedToday,
+                            priority: fixedTask.priority,
+                            assignedSlot: fixedTask.defaultAssignedSlot,
+                            duration: fixedTask.duration,
+                            isFixed: true,
+                            responsible: fixedTask.responsible || ''
+                        });
+                    }
+                });
+
+                tasksForSchedule.sort((a, b) => {
+                    const timeA = a.assignedSlot ? timeToMinutes(a.assignedSlot) : Infinity;
+                    const timeB = b.assignedSlot ? timeToMinutes(b.assignedSlot) : Infinity;
+                    return timeA - timeB;
+                });
+
+
+                tasksForSchedule.filter(task => task.assignedSlot !== null).forEach(task => {
+                    const startMinutes = timeToMinutes(task.assignedSlot);
+                    for (let i = 0; i < task.duration; i += 15) {
+                        const currentMinutes = startMinutes + i;
+                        const currentTime = minutesToTime(currentMinutes);
+                        occupiedCells[currentTime] = task.id;
+                    }
+                });
+
+                all15MinSlots.forEach((slot, index) => {
+                    const timeLabelCell = document.createElement('div');
+                    timeLabelCell.style.gridRowStart = index + 1;
+                    timeLabelCell.style.gridColumn = 1;
+                    timeLabelCell.classList.add('time-label-cell');
+
+                    if (slot.time.endsWith(':00')) {
+                        timeLabelCell.classList.add('hourly-label');
+                        timeLabelCell.textContent = slot.time;
+                    }
+                    scheduleGrid.appendChild(timeLabelCell);
+
+                    const assignedTask = tasksForSchedule.find(task => task.assignedSlot === slot.time);
+                    const isContinuation = occupiedCells[slot.time] && !assignedTask;
+
+                    if (assignedTask) {
+                        hasAssignedTasks = true;
+                        const taskItem = createTaskListItem(assignedTask, true, assignedTask.isFixed ? 'fixed-schedule' : 'task');
+                        const rowSpan = assignedTask.duration / 15;
+                        taskItem.style.gridRowStart = index + 1;
+                        taskItem.style.gridRowEnd = `span ${rowSpan}`;
+                        // Make scheduled tasks draggable
+                        taskItem.draggable = true;
+                        taskItem.addEventListener('dragstart', handleDragStart);
+                        scheduleGrid.appendChild(taskItem);
+                    } else if (!isContinuation) {
+                        const emptyCell = document.createElement('div');
+                        emptyCell.classList.add('schedule-cell');
+                        emptyCell.style.gridRowStart = index + 1;
+                        emptyCell.style.gridColumn = 2;
+                        emptyCell.dataset.timeSlot = slot.time; // Add data attribute for drop target
+                        emptyCell.addEventListener('dragover', handleDragOver);
+                        emptyCell.addEventListener('dragleave', handleDragLeave);
+                        emptyCell.addEventListener('drop', handleDrop);
+                        scheduleGrid.appendChild(emptyCell);
+                    }
+                });
+
+                const currentDayTasks = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+                if (!hasAssignedTasks && (currentDayTasks.filter(t => t.assignedSlot !== null).length === 0) && (timeboxData.fixedActivities.filter(f => f.defaultAssignedSlot !== null).length === 0)) {
+                    emptyScheduleState.style.display = 'block';
+                } else {
+                    emptyScheduleState.style.display = 'none';
+                }
+            };
+
+            const createTaskListItem = (item, isScheduleItem, type) => {
+                const itemElement = document.createElement(isScheduleItem ? 'div' : 'li');
+                itemElement.classList.add(isScheduleItem ? 'schedule-task-item' : 'task-item');
+                itemElement.dataset.itemId = item.id;
+                itemElement.dataset.itemType = type;
+                itemElement.classList.add(`priority-${item.priority}`);
+                if (item.completed) {
+                    itemElement.classList.add('completed');
+                }
+                if (item.isFixed) {
+                    itemElement.classList.add('is-fixed');
+                }
+
+                let actionsHtml = '';
+                let checkboxHtml = '';
+                let scoreHtml = '';
+                let responsibleHtml = item.responsible ? `<span class="task-responsible-display">Responsible: ${item.responsible}</span>` : '';
+
+                if (type === 'task') {
+                    if (isScheduleItem) {
+                        checkboxHtml = `<input type="checkbox" class="task-checkbox" ${item.completed ? 'checked' : ''} aria-label="Complete activity">`;
+                        actionsHtml = `
+                            <button class="edit-btn" aria-label="Edit activity">&#9998;</button>
+                            <button class="unassign-btn" aria-label="Unassign activity">&#8634;</button> <!-- Unassign button -->
+                            <button class="delete-btn" aria-label="Delete activity">&times;</button>
+                        `;
+                    } else { // Unassigned task
+                        actionsHtml = `
+                            <button class="edit-btn" aria-label="Edit activity">&#9998;</button>
+                            <button class="delete-btn" aria-label="Delete activity">&times;</button>
+                        `;
+                    }
+                    if (isScheduleItem) {
+                        const score = Math.min(13, (priorityScores[item.priority] || 0) * (durationScores[item.duration] || 0));
+                        scoreHtml = `<span class="task-score">Score: ${score}</span>`;
+                    }
+                } else if (type === 'reminder') {
+                    actionsHtml = `
+                        <button class="assign-btn" aria-label="Assign reminder">Assign</button>
+                        <button class="edit-reminder-btn" aria-label="Edit reminder">&#9998;</button>
+                        <button class="delete-reminder-btn" aria-label="Delete reminder">&times;</button>
+                    `;
+                } else if (type === 'fixed') {
+                    actionsHtml = `
+                        <button class="edit-fixed-btn" aria-label="Edit fixed activity">&#9998;</button>
+                        <button class="delete-fixed-btn" aria-label="Delete fixed activity">&times;</button>
+                    `;
+                } else if (type === 'fixed-schedule') {
+                    checkboxHtml = `<input type="checkbox" class="task-checkbox" ${item.completed ? 'checked' : ''} aria-label="Complete activity">`;
+                    actionsHtml = `
+                        <span style="font-size: 0.8em; color: var(--text-color);">Fixed</span>
+                    `;
+                    if (isScheduleItem) {
+                        const score = Math.min(13, (priorityScores[item.priority] || 0) * (durationScores[item.duration] || 0));
+                        scoreHtml = `<span class="task-score">Score: ${score}</span>`;
+                    }
+                } else if (type === 'backlog') {
+                    actionsHtml = `
+                        <button class="send-to-unassigned-btn" aria-label="Send to Unassigned Tasks">Send to Unassigned</button>
+                        <button class="delete-backlog-btn" aria-label="Delete backlog item">&times;</button>
+                    `;
+                }
+
+
+                itemElement.innerHTML = `
+                    ${checkboxHtml}
+                    <div class="task-content">
+                        <span class="task-text">${item.text}</span>
+                        <span class="task-priority-display">Priority: ${item.priority} - ${item.duration} min</span>
+                        ${responsibleHtml}
+                    </div>
+                    <div class="task-actions">
+                        ${actionsHtml}
+                    </div>
+                    ${scoreHtml}
+                `;
+                return itemElement;
+            };
+
+            const saveAllData = () => {
+                localStorage.setItem('timebox_data', JSON.stringify(timeboxData));
+            };
+
+            const checkOverlap = (newTask, currentDayTasks, fixedActivities, excludeId = null) => {
+                if (!newTask.assignedSlot) return false;
+
+                const newStartMinutes = timeToMinutes(newTask.assignedSlot);
+                const newEndMinutes = newStartMinutes + newTask.duration;
+
+                const tasksToExamine = [];
+
+                // Add current day's tasks
+                currentDayTasks.forEach(task => {
+                    if (task.id !== excludeId) { // Exclude the task being edited or moved
+                        tasksToExamine.push(task);
+                    }
+                });
+
+                // Add fixed activities
+                fixedActivities.forEach(fixedTask => {
+                    if (fixedTask.defaultAssignedSlot) {
+                        const fixedTaskCheckId = fixedTask.id; // Use original ID for fixed tasks
+                        if (fixedTaskCheckId !== excludeId) { // Exclude the fixed task being edited if applicable
+                            tasksToExamine.push({
+                                id: fixedTaskCheckId,
+                                assignedSlot: fixedTask.defaultAssignedSlot,
+                                duration: fixedTask.duration
+                            });
+                        }
+                    }
+                });
+
+                for (const existingTask of tasksToExamine) {
+                    if (!existingTask.assignedSlot) continue;
+
+                    const existingStartMinutes = timeToMinutes(existingTask.assignedSlot);
+                    const existingEndMinutes = existingStartMinutes + existingTask.duration;
+
+                    if (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // AI Analysis Function
+            const getAIAnalysis = (dailyStats, observations) => {
+                const totalScore = dailyStats.totalScore;
+                const goalScore = dailyStats.goalScore;
+                const completedTasks = dailyStats.completedTasksCount;
+                const percentage = dailyStats.goalScore > 0 ? (totalScore / goalScore) * 100 : 0;
+
+                let analysisText = `<h3>Daily Performance Analysis</h3>`;
+                analysisText += `<p>Your total score for the day is <strong>${totalScore}</strong> out of a goal of <strong>${goalScore}</strong>, achieving <strong>${percentage.toFixed(2)}%</strong> completion. You completed <strong>${completedTasks}</strong> tasks.</p>`;
+
+                if (observations) {
+                    analysisText += `<p><strong>Your observations:</strong> "${observations}"</p>`;
+                }
+
+                analysisText += `<h4>Insights & Suggestions for Time Management</h4>`;
+
+                if (percentage >= 90) {
+                    analysisText += `<p><strong>Excellent Performance!</strong> You've shown great focus and execution. To maintain this, continually review your processes for further optimization. Consider identifying your most critical tasks for tomorrow and ensuring they are prioritized.</p>`;
+                } else if (percentage >= 70) {
+                    analysisText += `<p><strong>Strong Progress!</strong> You're managing your time effectively. To enhance your productivity, reflect on whether your time blocks are truly optimized. Try to minimize context switching by grouping similar tasks together to reduce mental overhead. This can lead to deeper work and better results.</p>`;
+                    if (observations.toLowerCase().includes('pressed') || observations.toLowerCase().includes('unplanned activities') || observations.toLowerCase().includes('buffer')) {
+                        analysisText += `<p>Your observations about feeling pressured or unexpected activities suggest the importance of adaptability. It's beneficial to include small "buffer blocks" in your schedule for unforeseen events or urgent tasks that may arise. This flexibility is key to maintaining control.</p>`;
+                    }
+                } else if (percentage >= 50) {
+                    analysisText += `<p><strong>Good Effort!</strong> There's room for improvement. Take time to reflect on your planning. Were your time estimates realistic? Did unexpected interruptions occur? Focus on ruthless prioritization: identify the "critical path" tasks – those that absolutely must get done – and ensure they are allocated prime time slots.</p>`;
+                    if (observations.toLowerCase().includes('pressed') || observations.toLowerCase().includes('unplanned activities') || observations.toLowerCase().includes('buffer')) {
+                        analysisText += `<p>Your comments about feeling pressured and interruptions are crucial. Try to simplify your daily objectives and concentrate on achieving a few high-impact items. Flexibility is vital when unexpected challenges arise, so consider building in some buffer time.</p>`;
+                    }
+                } else {
+                    analysisText += `<p><strong>Opportunity for Growth:</strong> Your current timeboxing approach might need significant adjustments. Were your tasks clearly defined? Did you get distracted easily? Try breaking down complex goals into smaller, more manageable tasks. Focus on achieving a few high-impact items. Don't be afraid to adjust your schedule during the day; flexibility is key when unexpected challenges arise.</p>`;
+                    if (observations.toLowerCase().includes('pressed') || observations.toLowerCase().includes('unplanned activities') || observations.toLowerCase().includes('buffer')) {
+                        analysisText += `<p>The pressure and unplanned activities you mentioned are common challenges. Consider breaking tasks into even smaller chunks (e.g., 5-minute segments) if necessary to overcome inertia and maintain momentum. A lack of buffer time can often contribute to feeling overwhelmed.</p>`;
+                    }
+                }
+
+                if (completedTasks === 0 && goalScore > 0) {
+                    analysisText += `<p>It seems no tasks were completed today despite having a goal. Re-evaluate your task breakdown. Are your tasks too large? Try breaking them into smaller, more achievable steps to build momentum.</p>`;
+                } else if (completedTasks > 0 && percentage < 50) {
+                    analysisText += `<p>You completed some tasks, but the overall score is low. This might indicate that high-priority or high-duration tasks were left incomplete. Focus on tackling the most impactful tasks first, even if they are challenging.</p>`;
+                }
+
+                analysisText += `<p>Remember, effective time management is about intentionality. Every minute counts. Re-evaluate, adapt, and iterate on your approach daily.</p>`;
+                return analysisText;
+            };
+
+
+            // --- Event Listeners ---
+
+            // Date selection for Capture Page
+            captureDateInput.addEventListener('change', (e) => {
+                currentDate = new Date(e.target.value);
+                renderCapturePage();
+                renderSchedulePage(); // Update schedule when date changes
+                renderDashboardPage(); // Update dashboard when date changes
+            });
+
+            // Date selection for Statistics Page
+            statsDateInput.addEventListener('change', (e) => {
+                statsDate = new Date(e.target.value);
+                renderStatisticsPage();
+            });
+
+            // Add new task
+            addTaskBtn.addEventListener('click', async () => {
+                const taskText = taskInput.value.trim();
+                const taskPriority = 'Normal'; // Default priority
+                if (taskText !== '') {
+                    if (!timeboxData.tasksByDate[formatDate(currentDate)]) {
+                        timeboxData.tasksByDate[formatDate(currentDate)] = [];
+                    }
+                    timeboxData.tasksByDate[formatDate(currentDate)].push({ id: generateUniqueId(), text: taskText, completed: false, priority: taskPriority, assignedSlot: null, duration: 30, isFixed: false, responsible: '' });
+                    taskInput.value = '';
+                    saveAllData();
+                    renderCapturePage();
+                } else {
+                    await showModal('Attention', 'Please enter an activity.');
+                }
+            });
+
+            // Add new reminder
+            addReminderBtn.addEventListener('click', async () => {
+                const reminderText = reminderInput.value.trim();
+                if (reminderText !== '') {
+                    if (!timeboxData.remindersByDate[formatDate(currentDate)]) {
+                        timeboxData.remindersByDate[formatDate(currentDate)] = [];
+                    }
+                    timeboxData.remindersByDate[formatDate(currentDate)].push({ id: generateUniqueId(), text: reminderText, priority: 'Normal', duration: 30 });
+                    reminderInput.value = '';
+                    saveAllData();
+                    renderCapturePage();
+                } else {
+                    await showModal('Attention', 'Please enter a reminder.');
+                }
+            });
+
+            // Add to Backlog
+            addBacklogBtn.addEventListener('click', async () => {
+                const backlogText = backlogInput.value.trim();
+                if (backlogText !== '') {
+                    timeboxData.backlog.push({ id: generateUniqueId(), text: backlogText, priority: 'Normal', duration: 30 });
+                    backlogInput.value = '';
+                    saveAllData();
+                    renderBacklogPage();
+                } else {
+                    await showModal('Attention', 'Please enter a task for the backlog.');
+                }
+            });
+
+            // Add new fixed activity
+            addFixedTaskBtn.addEventListener('click', async () => {
+                const fixedText = fixedTaskInput.value.trim();
+                // Default values for new fixed tasks
+                const fixedPriority = 'Normal';
+                const fixedDuration = 30;
+                const fixedTimeSlot = null;
+
+                if (fixedText !== '') {
+                    const newFixedTask = {
+                        id: generateUniqueId(),
+                        text: fixedText,
+                        priority: fixedPriority,
+                        duration: fixedDuration,
+                        defaultAssignedSlot: fixedTimeSlot,
+                        responsible: '', // Default empty responsible for fixed tasks
+                        completedDates: [] // Initialize completedDates array for fixed tasks
+                    };
+
+                    timeboxData.fixedActivities.push(newFixedTask);
+                    fixedTaskInput.value = '';
+                    saveAllData();
+                    renderFixedActivitiesPage();
+                    if (currentPageId === 'schedule-page') renderSchedule(); // Update schedule if on that page
+                } else {
+                    await showModal('Attention', 'Please enter a fixed activity.');
+                }
+            });
+
+            // Rec Observations button functionality
+            let isRecording = false;
+            recObservationsBtn.addEventListener('click', async () => {
+                if (!isRecording) {
+                    isRecording = true;
+                    recObservationsBtn.textContent = 'Stop Rec';
+                    recObservationsBtn.style.backgroundColor = '#e53935'; // Red for recording
+                    await showModal('Recording', 'Recording started. (This is a simulated recording. Full audio recording requires advanced browser permissions and potentially server-side processing.)');
+                    // In a real app, you'd start actual voice recording here
+                } else {
+                    isRecording = false;
+                    recObservationsBtn.textContent = 'Rec';
+                    // Get the computed value of --primary-color
+                    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+                    recObservationsBtn.style.backgroundColor = primaryColor; // Use the actual color value
+                    await showModal('Recording', 'Recording stopped. (This was a simulated recording. To save real audio, it would need to be processed and stored.)');
+                    // In a real app, you'd stop recording and process the audio here
+                }
+            });
+
+            // Save Observations
+            saveObservationsBtn.addEventListener('click', async () => {
+                const observations = observationsTextarea.value.trim();
+                const confirmed = await showModal('Confirm Save', 'Are you sure you want to save these observations?', false, '', true);
+                if (confirmed) {
+                    timeboxData.dailyObservations[formatDate(statsDate)] = observations;
+                    saveAllData();
+
+                    const dailyStats = timeboxData.dailyScores[formatDate(statsDate)] || { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                    const aiAnalysis = getAIAnalysis(dailyStats, observations);
+
+                    await showModal('AI Analysis & Suggestions', '', false, '', false, 'Normal', null, 30, false, true);
+                    modalMessage.innerHTML = aiAnalysis; // Set innerHTML after modal is shown
+                }
+            });
+
+
+            // Allow adding task/reminder/fixed/backlog with Enter key
+            taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTaskBtn.click(); });
+            reminderInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addReminderBtn.click(); });
+            backlogInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addBacklogBtn.click(); });
+            fixedTaskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addFixedTaskBtn.click(); });
+
+
+            // Drag and Drop Handlers
+            function handleDragStart(e) {
+                draggedItemId = e.target.dataset.itemId;
+                draggedItemType = e.target.dataset.itemType;
+                e.dataTransfer.setData('text/plain', draggedItemId);
+                e.dataTransfer.setData('text/itemType', draggedItemType);
+
+                // Store original duration for tasks dragged from unassigned to schedule
+                if (draggedItemType === 'task') {
+                    const tasksForCurrentDate = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+                    const task = tasksForCurrentDate.find(t => t.id === draggedItemId);
+                    if (task) {
+                        draggedItemOriginalDuration = task.duration;
+                    }
+                } else if (draggedItemType === 'fixed-schedule') {
+                    const fixedTask = timeboxData.fixedActivities.find(f => f.id === draggedItemId);
+                    if (fixedTask) {
+                        draggedItemOriginalDuration = fixedTask.duration;
+                    }
+                }
+
+                // Add a class to the dragged element for styling
+                e.target.classList.add('dragging');
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault(); // Allow drop
+                if (e.target.classList.contains('schedule-cell')) {
+                    e.target.classList.add('drag-over');
+                }
+            }
+
+            function handleDragLeave(e) {
+                if (e.target.classList.contains('schedule-cell')) {
+                    e.target.classList.remove('drag-over');
+                }
+            }
+
+            async function handleDrop(e) {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.schedule-cell');
+                if (!dropTarget) return;
+
+                dropTarget.classList.remove('drag-over');
+
+                const targetTimeSlot = dropTarget.dataset.timeSlot;
+                const id = draggedItemId;
+                const type = draggedItemType;
+                let item = null;
+
+                const tasksForCurrentDate = timeboxData.tasksByDate[formatDate(currentDate)] || [];
+                const fixedActivities = timeboxData.fixedActivities;
+
+                if (type === 'task') {
+                    item = tasksForCurrentDate.find(t => t.id === id);
+                } else if (type === 'fixed-schedule') {
+                    item = fixedActivities.find(f => f.id === id);
+                } else if (type === 'backlog') {
+                    const backlogItem = timeboxData.backlog.find(b => b.id === id);
+                    if (backlogItem) {
+                        item = {
+                            id: generateUniqueId(), // New ID for the task created from backlog
+                            text: backlogItem.text,
+                            completed: false,
+                            priority: backlogItem.priority || 'Normal',
+                            assignedSlot: null, // Will be set below
+                            duration: backlogItem.duration || 30, // Default duration for backlog items
+                            isFixed: false,
+                            responsible: ''
+                        };
+                        // Remove from backlog
+                        timeboxData.backlog = timeboxData.backlog.filter(b => b.id !== id);
+                        // Add to current day's tasks
+                        if (!timeboxData.tasksByDate[formatDate(currentDate)]) {
+                            timeboxData.tasksByDate[formatDate(currentDate)] = [];
+                        }
+                        timeboxData.tasksByDate[formatDate(currentDate)].push(item);
+                        // Update the id to the new task id for further processing
+                        id = item.id;
+                        type = 'task';
+                    }
+                }
+
+                if (!item) return;
+
+                const oldAssignedSlot = item.assignedSlot;
+                const oldDuration = item.duration;
+                const oldPriority = item.priority;
+                const oldScoreContribution = Math.min(13, (priorityScores[oldPriority] || 0) * (durationScores[oldDuration] || 0));
+
+
+                // Calculate new duration based on empty slots below, up to original duration or max available
+                let newDuration = draggedItemOriginalDuration || 30; // Default to 30 if not set
+                const all15MinSlots = generateAll15MinTimeSlots();
+                const targetSlotIndex = all15MinSlots.findIndex(slot => slot.time === targetTimeSlot);
+
+                // Check how many consecutive empty slots are available from the target slot
+                let availableSlots = 0;
+                for (let i = 0; i < all15MinSlots.length - targetSlotIndex; i++) {
+                    const currentCheckSlot = all15MinSlots[targetSlotIndex + i].time;
+                    const hypotheticalTask = {
+                        id: item.id, // Use item.id for exclusion
+                        text: item.text,
+                        priority: item.priority,
+                        assignedSlot: targetTimeSlot,
+                        duration: (i + 1) * 15 // Check with increasing duration
+                    };
+                    // Pass the item's ID for exclusion from overlap check
+                    const excludeIdForOverlap = item.isFixed ? item.id : item.id; // Corrected to use item.id directly
+
+                    if (!checkOverlap(hypotheticalTask, tasksForCurrentDate, fixedActivities, excludeIdForOverlap)) {
+                        availableSlots++;
+                    } else {
+                        break;
+                    }
+                }
+                newDuration = Math.min(newDuration, availableSlots * 15);
+                if (newDuration === 0) { // If no space at all
+                    await showModal('Assignment Error', 'There is not enough space in the schedule for this activity at the selected time slot.');
+                    renderSchedule();
+                    renderUnassignedTasks();
+                    renderBacklogPage();
+                    return;
+                }
+
+                const updatedItem = {
+                    ...item,
+                    assignedSlot: targetTimeSlot,
+                    duration: newDuration
+                };
+
+                // Perform final overlap check with the calculated new duration
+                const finalExcludeId = item.isFixed ? item.id : item.id; // Corrected to use item.id directly
+                if (checkOverlap(updatedItem, tasksForCurrentDate, fixedActivities, finalExcludeId)) {
+                    await showModal('Assignment Error', `The activity overlaps with another task in the schedule. Please choose another time slot or duration.`);
+                    renderSchedule();
+                    renderUnassignedTasks();
+                    renderBacklogPage();
+                    return;
+                }
+
+                // Update the item in the data structure
+                if (type === 'task') {
+                    const taskIndex = tasksForCurrentDate.findIndex(t => t.id === id);
+                    if (taskIndex !== -1) {
+                        tasksForCurrentDate[taskIndex] = updatedItem;
+                    }
+                } else if (type === 'fixed-schedule') {
+                    const fixedIndex = fixedActivities.findIndex(f => f.id === id);
+                    if (fixedIndex !== -1) {
+                        fixedActivities[fixedIndex].defaultAssignedSlot = updatedItem.assignedSlot;
+                        fixedActivities[fixedIndex].duration = updatedItem.duration;
+                        fixedActivities[fixedIndex].priority = updatedItem.priority; // Also update priority if changed by modal
+                    }
+                }
+
+                // Update scores if needed
+                if (!timeboxData.dailyScores[formatDate(currentDate)]) {
+                    timeboxData.dailyScores[formatDate(currentDate)] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                }
+
+                const newScoreContribution = Math.min(13, (priorityScores[updatedItem.priority] || 0) * (durationScores[updatedItem.duration] || 0));
+
+                if (!oldAssignedSlot && updatedItem.assignedSlot) { // Was unassigned, now assigned
+                    timeboxData.dailyScores[formatDate(currentDate)].goalScore += newScoreContribution;
+                } else if (oldAssignedSlot && updatedItem.assignedSlot) { // Was assigned, still assigned (duration/slot changed)
+                    timeboxData.dailyScores[formatDate(currentDate)].goalScore = timeboxData.dailyScores[formatDate(currentDate)].goalScore - oldScoreContribution + newScoreContribution;
+                    if (item.completed) { // If it was completed, update total score as well
+                        timeboxData.dailyScores[formattedCurrentDate].totalScore = timeboxData.dailyScores[formattedCurrentDate].totalScore - oldScoreContribution + newScoreContribution;
+                    }
+                }
+
+                saveAllData();
+                renderSchedule();
+                renderUnassignedTasks(); // Re-render unassigned tasks if a backlog item was moved
+                renderBacklogPage(); // Re-render backlog if an item was moved
+            }
+
+            document.addEventListener('dragend', (e) => {
+                // Remove the dragging class from the element that was dragged
+                e.target.classList.remove('dragging');
+                // Reset global dragged item info
+                draggedItemId = null;
+                draggedItemType = null;
+                draggedItemOriginalDuration = null;
+            });
+
+
+            // Handle click events on all lists (event delegation)
+            document.addEventListener('click', async (e) => {
+                const itemElement = e.target.closest('.task-item, .schedule-task-item');
+                if (!itemElement) return;
+
+                const itemId = itemElement.dataset.itemId;
+                const itemType = itemElement.dataset.itemType;
+                const formattedCurrentDate = formatDate(currentDate);
+
+                // Handle task checkbox (for regular tasks and fixed-schedule items)
+                if (e.target.classList.contains('task-checkbox') && (itemType === 'task' || itemType === 'fixed-schedule')) {
+                    const isChecked = e.target.checked;
+                    let taskToUpdate = null;
+                    let originalScore = 0;
+
+                    if (itemType === 'task') {
+                        const tasksForCurrentDate = timeboxData.tasksByDate[formattedCurrentDate] || [];
+                        const taskIndex = tasksForCurrentDate.findIndex(t => t.id === itemId);
+                        if (taskIndex !== -1) {
+                            taskToUpdate = tasksForCurrentDate[taskIndex];
+                            originalScore = Math.min(13, (priorityScores[taskToUpdate.priority] || 0) * (durationScores[taskToUpdate.duration] || 0));
+                            taskToUpdate.completed = isChecked;
+                        }
+                    } else if (itemType === 'fixed-schedule') {
+                        const fixedTask = timeboxData.fixedActivities.find(f => f.id === itemId);
+                        if (fixedTask) {
+                            taskToUpdate = fixedTask;
+                            originalScore = Math.min(13, (priorityScores[taskToUpdate.priority] || 0) * (durationScores[taskToUpdate.duration] || 0));
+                            if (!taskToUpdate.completedDates) {
+                                taskToUpdate.completedDates = [];
+                            }
+                            if (isChecked) {
+                                if (!taskToUpdate.completedDates.includes(formattedCurrentDate)) {
+                                    taskToUpdate.completedDates.push(formattedCurrentDate);
+                                }
+                            } else {
+                                const dateIndex = taskToUpdate.completedDates.indexOf(formattedCurrentDate);
+                                if (dateIndex > -1) {
+                                    taskToUpdate.completedDates.splice(dateIndex, 1);
+                                }
+                            }
+                        }
+                    }
+
+                    if (taskToUpdate) {
+                        if (!timeboxData.dailyScores[formattedCurrentDate]) {
+                            timeboxData.dailyScores[formattedCurrentDate] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                        }
+
+                        if (isChecked) {
+                            timeboxData.dailyScores[formattedCurrentDate].completedTasksCount++;
+                            timeboxData.dailyScores[formattedCurrentDate].totalScore += originalScore;
+                        } else {
+                            timeboxData.dailyScores[formattedCurrentDate].completedTasksCount--;
+                            timeboxData.dailyScores[formattedCurrentDate].totalScore -= originalScore;
+                        }
+                        saveAllData();
+                        renderCapturePage(); // Re-render to reflect changes
+                        renderSchedulePage(); // Re-render schedule page for fixed tasks
+                    }
+                }
+
+                // Handle task edit (for tasks)
+                if (e.target.classList.contains('edit-btn') && itemType === 'task') {
+                    const tasksForCurrentDate = timeboxData.tasksByDate[formattedCurrentDate] || [];
+                    const taskIndex = tasksForCurrentDate.findIndex(t => t.id === itemId);
+                    if (taskIndex === -1) return;
+                    const task = tasksForCurrentDate[taskIndex];
+
+                    const result = await showModal(
+                        'Edit Activity',
+                        'Edit the text, priority, time slot, duration, and responsible person of your activity:',
+                        true,
+                        task.text,
+                        true,
+                        task.priority,
+                        task.assignedSlot, // Pass current assigned slot
+                        task.duration,
+                        false, // isReminderAssignment
+                        task.id, // Pass the ID of the task being edited
+                        task.responsible || '' // Pass current responsible
+                    );
+
+                    if (result && result.text !== null && result.text.trim() !== '') {
+                        const oldAssignedSlot = task.assignedSlot;
+                        const oldScoreContribution = Math.min(13, (priorityScores[task.priority] || 0) * (durationScores[task.duration] || 0));
+
+                        const updatedTask = {
+                            ...task,
+                            text: result.text.trim(),
+                            priority: result.priority,
+                            assignedSlot: result.assignedSlot,
+                            duration: result.duration,
+                            responsible: result.responsible
+                        };
+
+                        if (updatedTask.assignedSlot && checkOverlap(updatedTask, tasksForCurrentDate, timeboxData.fixedActivities, updatedTask.id)) {
+                            await showModal('Assignment Error', `The activity overlaps with another task in the schedule. Please choose another time slot or duration.`);
+                            return;
+                        }
+
+                        tasksForCurrentDate[taskIndex] = updatedTask;
+
+                        if (!timeboxData.dailyScores[formattedCurrentDate]) {
+                            timeboxData.dailyScores[formattedCurrentDate] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                        }
+                        const newScoreContribution = Math.min(13, (priorityScores[updatedTask.priority] || 0) * (durationScores[updatedTask.duration] || 0));
+
+                        if (oldAssignedSlot && !updatedTask.assignedSlot) {
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore -= oldScoreContribution;
+                            if (updatedTask.completed) {
+                                timeboxData.dailyScores[formattedCurrentDate].completedTasksCount--;
+                                timeboxData.dailyScores[formattedCurrentDate].totalScore -= oldScoreContribution;
+                            }
+                        } else if (!oldAssignedSlot && updatedTask.assignedSlot) {
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore += newScoreContribution;
+                        } else if (oldAssignedSlot && updatedTask.assignedSlot) {
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore = timeboxData.dailyScores[formattedCurrentDate].goalScore - oldScoreContribution + newScoreContribution;
+                            if (updatedTask.completed) {
+                                timeboxData.dailyScores[formattedCurrentDate].totalScore = timeboxData.dailyScores[formattedCurrentDate].totalScore - oldScoreContribution + newScoreContribution;
+                            }
+                        }
+                        if (updatedTask.completed && oldScoreContribution !== newScoreContribution) {
+                            timeboxData.dailyScores[formattedCurrentDate].totalScore = timeboxData.dailyScores[formattedCurrentDate].totalScore - oldScoreContribution + newScoreContribution;
+                        }
+
+                        saveAllData();
+                        renderCapturePage();
+                        renderSchedulePage();
+                    }
+                }
+
+                // Handle task unassign (for tasks in schedule)
+                if (e.target.classList.contains('unassign-btn') && itemType === 'task') {
+                    const tasksForCurrentDate = timeboxData.tasksByDate[formattedCurrentDate] || [];
+                    const taskIndex = tasksForCurrentDate.findIndex(t => t.id === itemId);
+                    if (taskIndex === -1) return;
+                    const task = tasksForCurrentDate[taskIndex];
+
+                    const confirmed = await showModal('Confirm Unassign', 'Are you sure you want to unassign this activity and move it to "Unassigned Tasks"?', false, '', true);
+                    if (confirmed) {
+                        const score = Math.min(13, (priorityScores[task.priority] || 0) * (durationScores[task.duration] || 0));
+
+                        if (!timeboxData.dailyScores[formattedCurrentDate]) {
+                            timeboxData.dailyScores[formattedCurrentDate] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                        }
+
+                        // Remove score contribution from goal if it was assigned
+                        if (task.assignedSlot) {
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore -= score;
+                        }
+                        // If task was completed, revert score
+                        if (task.completed) {
+                            timeboxData.dailyScores[formattedCurrentDate].completedTasksCount--;
+                            timeboxData.dailyScores[formattedCurrentDate].totalScore -= score;
+                        }
+
+                        task.assignedSlot = null; // Set to unassigned
+                        task.completed = false; // Reset completed status when unassigned
+                        saveAllData();
+                        renderCapturePage();
+                        renderSchedulePage();
+                    }
+                }
+
+                // Handle task delete (for tasks)
+                if (e.target.classList.contains('delete-btn') && itemType === 'task') {
+                    const tasksForCurrentDate = timeboxData.tasksByDate[formattedCurrentDate] || [];
+                    const taskIndex = tasksForCurrentDate.findIndex(t => t.id === itemId);
+                    if (taskIndex === -1) return;
+
+                    const confirmed = await showModal('Confirm Deletion', 'Are you sure you want to delete this activity?', false, '', true);
+                    if (confirmed) {
+                        const taskToDelete = tasksForCurrentDate[taskIndex];
+                        const score = Math.min(13, (priorityScores[taskToDelete.priority] || 0) * (durationScores[taskToDelete.duration] || 0));
+
+                        if (!timeboxData.dailyScores[formattedCurrentDate]) {
+                            timeboxData.dailyScores[formattedCurrentDate] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                        }
+
+                        if (taskToDelete.assignedSlot) {
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore -= score;
+                        }
+                        if (taskToDelete.completed) {
+                            timeboxData.dailyScores[formattedCurrentDate].completedTasksCount--;
+                            timeboxData.dailyScores[formattedCurrentDate].totalScore -= score;
+                        }
+                        tasksForCurrentDate.splice(taskIndex, 1);
+                        saveAllData();
+                        renderCapturePage();
+                        renderSchedulePage();
+                    }
+                }
+
+                // Handle reminder assign (for reminders)
+                if (e.target.classList.contains('assign-btn') && itemType === 'reminder') {
+                    const remindersForCurrentDate = timeboxData.remindersByDate[formattedCurrentDate] || [];
+                    const reminderIndex = remindersForCurrentDate.findIndex(r => r.id === itemId);
+                    if (reminderIndex === -1) return;
+                    const reminder = remindersForCurrentDate[reminderIndex];
+
+                    const result = await showModal(
+                        'Assign Reminder',
+                        'Assign this reminder to your schedule:',
+                        false,
+                        reminder.text,
+                        true,
+                        reminder.priority,
+                        null,
+                        reminder.duration,
+                        true, // isReminderAssignment
+                        null, // No item ID to exclude for new assignment
+                        '' // No responsible for reminders
+                    );
+
+                    if (result && result.text !== null && result.text.trim() !== '') {
+                        const tasksForCurrentDate = timeboxData.tasksByDate[formattedCurrentDate] || [];
+                        const newTask = {
+                            id: generateUniqueId(),
+                            text: result.text.trim(),
+                            completed: false,
+                            priority: result.priority,
+                            assignedSlot: result.assignedSlot,
+                            duration: result.duration,
+                            isFixed: false,
+                            responsible: ''
+                        };
+
+                        if (newTask.assignedSlot && checkOverlap(newTask, tasksForCurrentDate, timeboxData.fixedActivities, null)) {
+                            await showModal('Assignment Error', `The activity overlaps with another task in the schedule. Please choose another time slot or duration.`);
+                            return;
+                        }
+
+                        tasksForCurrentDate.push(newTask);
+                        remindersForCurrentDate.splice(reminderIndex, 1);
+
+                        if (newTask.assignedSlot) {
+                            if (!timeboxData.dailyScores[formattedCurrentDate]) {
+                                timeboxData.dailyScores[formattedCurrentDate] = { goalScore: 0, completedTasksCount: 0, totalScore: 0 };
+                            }
+                            const score = Math.min(13, (priorityScores[newTask.priority] || 0) * (durationScores[newTask.duration] || 0));
+                            timeboxData.dailyScores[formattedCurrentDate].goalScore += score;
+                        }
+
+                        saveAllData();
+                        renderCapturePage();
+                        renderSchedulePage();
+                    }
+                }
+
+                // Handle reminder edit (for reminders)
+                if (e.target.classList.contains('edit-reminder-btn') && itemType === 'reminder') {
+                    const remindersForCurrentDate = timeboxData.remindersByDate[formattedCurrentDate] || [];
+                    const reminderIndex = remindersForCurrentDate.findIndex(r => r.id === itemId);
+                    if (reminderIndex === -1) return;
+                    const reminder = remindersForCurrentDate[reminderIndex];
+
+                    const result = await showModal(
+                        'Edit Reminder',
+                        'Edit the text, priority, and duration of your reminder:',
+                        true,
+                        reminder.text,
+                        true,
+                        reminder.priority,
+                        null,
+                        reminder.duration,
+                        false, // isReminderAssignment
+                        null, // No item ID to exclude for reminders as they are not assigned to schedule
+                        '' // No responsible for reminders
+                    );
+
+                    if (result && result.text !== null && result.text.trim() !== '') {
+                        remindersForCurrentDate[reminderIndex].text = result.text.trim();
+                        remindersForCurrentDate[reminderIndex].priority = result.priority;
+                        remindersForCurrentDate[reminderIndex].duration = result.duration;
+                        saveAllData();
+                        renderCapturePage();
+                    }
+                }
+
+                // Handle reminder delete (for reminders)
+                if (e.target.classList.contains('delete-reminder-btn') && itemType === 'reminder') {
+                    const remindersForCurrentDate = timeboxData.remindersByDate[formattedCurrentDate] || [];
+                    const reminderIndex = remindersForCurrentDate.findIndex(r => r.id === itemId);
+                    if (reminderIndex === -1) return;
+
+                    const confirmed = await showModal('Confirm Deletion', 'Are you sure you want to delete this reminder?', false, '', true);
+                    if (confirmed) {
+                        remindersForCurrentDate.splice(reminderIndex, 1);
+                        saveAllData();
+                        renderCapturePage();
+                    }
+                }
+
+                // Handle fixed activity edit (for fixed activities page)
+                if (e.target.classList.contains('edit-fixed-btn') && itemType === 'fixed') {
+                    const fixedIndex = timeboxData.fixedActivities.findIndex(f => f.id === itemId);
+                    if (fixedIndex === -1) return;
+                    const fixedTask = timeboxData.fixedActivities[fixedIndex];
+
+                    const result = await showModal(
+                        'Edit Fixed Activity',
+                        'Edit the text, priority, time slot, duration, and responsible person of your fixed activity:',
+                        true,
+                        fixedTask.text,
+                        true,
+                        fixedTask.priority,
+                        fixedTask.defaultAssignedSlot, // Pass current assigned slot
+                        fixedTask.duration,
+                        false, // isReminderAssignment
+                        fixedTask.id, // Pass the ID of the fixed task being edited
+                        fixedTask.responsible || '' // Pass current responsible
+                    );
+
+                    if (result && result.text !== null && result.text.trim() !== '') {
+                        const updatedFixedTask = {
+                            ...fixedTask,
+                            text: result.text.trim(),
+                            priority: result.priority,
+                            defaultAssignedSlot: result.assignedSlot,
+                            duration: result.duration,
+                            responsible: result.responsible
+                        };
+
+                        if (updatedFixedTask.defaultAssignedSlot && checkOverlap(updatedFixedTask, timeboxData.tasksByDate[formattedCurrentDate] || [], timeboxData.fixedActivities, updatedFixedTask.id)) {
+                            await showModal('Assignment Error', `This fixed activity overlaps with an existing task in the schedule. Please choose another time slot or duration.`);
+                            return;
+                        }
+
+                        timeboxData.fixedActivities[fixedIndex] = updatedFixedTask;
+                        saveAllData();
+                        renderFixedActivitiesPage();
+                        if (currentPageId === 'schedule-page') renderSchedule();
+                    }
+                }
+
+                // Handle fixed activity delete (for fixed activities page)
+                if (e.target.classList.contains('delete-fixed-btn') && itemType === 'fixed') {
+                    const fixedIndex = timeboxData.fixedActivities.findIndex(f => f.id === itemId);
+                    if (fixedIndex === -1) return;
+
+                    const confirmed = await showModal('Confirm Deletion', 'Are you sure you want to delete this fixed activity?', false, '', true);
+                    if (confirmed) {
+                        const fixedTaskToDelete = timeboxData.fixedActivities[fixedIndex];
+                        const score = Math.min(13, (priorityScores[fixedTaskToDelete.priority] || 0) * (durationScores[fixedTaskToDelete.duration] || 0));
+
+                        if (fixedTaskToDelete.defaultAssignedSlot && fixedTaskToDelete.completedDates) {
+                            fixedTaskToDelete.completedDates.forEach(date => {
+                                if (timeboxData.dailyScores[date]) {
+                                    timeboxData.dailyScores[date].goalScore -= score;
+                                    timeboxData.dailyScores[date].completedTasksCount--;
+                                    timeboxData.dailyScores[date].totalScore -= score;
+                                }
+                            });
+                        }
+
+                        timeboxData.fixedActivities.splice(fixedIndex, 1);
+                        saveAllData();
+                        renderFixedActivitiesPage();
+                        if (currentPageId === 'schedule-page') renderSchedule();
+                    }
+                }
+
+                // Handle send to unassigned from backlog
+                if (e.target.classList.contains('send-to-unassigned-btn') && itemType === 'backlog') {
+                    const backlogItemIndex = timeboxData.backlog.findIndex(b => b.id === itemId);
+                    if (backlogItemIndex === -1) return;
+
+                    const backlogItem = timeboxData.backlog[backlogItemIndex];
+                    if (!timeboxData.tasksByDate[formattedCurrentDate]) {
+                        timeboxData.tasksByDate[formattedCurrentDate] = [];
+                    }
+                    timeboxData.tasksByDate[formattedCurrentDate].push({
+                        id: generateUniqueId(),
+                        text: backlogItem.text,
+                        completed: false,
+                        priority: backlogItem.priority,
+                        assignedSlot: null,
+                        duration: backlogItem.duration,
+                        isFixed: false,
+                        responsible: ''
+                    });
+                    timeboxData.backlog.splice(backlogItemIndex, 1);
+                    saveAllData();
+                    renderBacklogPage();
+                    renderCapturePage(); // Re-render unassigned tasks
+                }
+
+                // Handle delete backlog item
+                if (e.target.classList.contains('delete-backlog-btn') && itemType === 'backlog') {
+                    const backlogItemIndex = timeboxData.backlog.findIndex(b => b.id === itemId);
+                    if (backlogItemIndex === -1) return;
+
+                    const confirmed = await showModal('Confirm Deletion', 'Are you sure you want to delete this backlog task?', false, '', true);
+                    if (confirmed) {
+                        timeboxData.backlog.splice(backlogItemIndex, 1);
+                        saveAllData();
+                        renderBacklogPage();
+                    }
+                }
+            });
+
+            // Initial render: set current date and show the default page
+            captureDateInput.value = formatDate(currentDate);
+            statsDateInput.value = formatDate(statsDate);
+            showPage(currentPageId);
+        });
+    </script>
+</body>
+</html>
+
